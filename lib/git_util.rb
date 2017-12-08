@@ -31,6 +31,10 @@ module Releasinator
       CommandProcessor.command("git mv -f #{old_path} #{new_path}")
     end
 
+    def self.add(filepath='.')
+      CommandProcessor.command("git add #{filepath}")
+    end
+
     def self.push_branch(branch_name)
       checkout(branch_name)
       fetch()
