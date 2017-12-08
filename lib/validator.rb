@@ -8,40 +8,6 @@ require_relative 'printer'
 require_relative 'changelog/validator'
 require_relative 'releasinator/version'
 
-TEXT_FILE_EXTENSIONS = [
-  ".md",
-  ".txt",
-  ".ini",
-  ".in",
-  ".xml",
-  ".gitignore",
-  ".npmignore",
-  ".html",
-  ".css",
-  ".h",
-  "Gemfile",
-  "Gemfile.lock",
-  ".rspec",
-  ".gemspec",
-  ".podspec",
-  ".rb",
-  ".java",
-  ".php",
-  ".py",
-  ".js",
-  ".yaml",
-  ".json",
-  ".sh",
-  ".groovy",
-  ".gemspec",
-  ".gradle",
-  ".settings",
-  ".properties",
-  "LICENSE",
-  "Rakefile",
-  "Dockerfile"
-  # TODO include C# file types
-]
 
 module Releasinator
   class Validator
@@ -62,20 +28,6 @@ module Releasinator
         Printer.success("Releasinator version: " + current_version.bold + " is newer than one from rubygems.org: " + latest_version.bold + ".  You're probably testing a development version.")
       else
         Printer.success("Releasinator version: " + latest_version.bold + " is the latest from rubygems.org.")
-      end
-    end
-
-    def validate_eof_newlines
-      all_git_files = GitUtil.all_files.split
-
-      important_git_text_files = all_git_files.select{ |filename|
-        TEXT_FILE_EXTENSIONS.any? { |extension|
-          filename.end_with?(extension)
-        }
-      }
-
-      important_git_text_files.each do |filename|
-        CommandProcessor.command("tail -c1 #{filename} | read -r _ || echo >> #{filename}")
       end
     end
 
@@ -114,12 +66,12 @@ module Releasinator
       if !obj.is_a? type
         Printer.fail("#{obj} is not a #{type}.")
         abort()
-      end 
+      end
     end
 
     def validate_method_convention(hash)
       hash.each do |key, value|
-        if key.to_s.end_with? "_methods" 
+        if key.to_s.end_with? "_methods"
           # validate that anything ending in _methods is a list of methods
           if !value.respond_to? :each
             Printer.fail("#{key} is not a list.")
@@ -232,11 +184,11 @@ module Releasinator
         Printer.fail("Directory #{dir} not found.")
         abort()
       end
-      
+
       Dir.chdir(dir) do
         if !GitUtil.exist?(expected_file_name)
           puts "#{dir}/#{expected_file_name} not found using a case sensitive search within git, searching for similar files...".yellow
-        
+
           # search for files that are somewhat similar to the file being searched, ignoring case
           filename_prefix = expected_file_name[0,5]
           similar_files = CommandProcessor.command("find . -type f -not -path \"./#{search_ignore_path}/*\" -iname '#{filename_prefix}*'| sed 's|./||'").strip
