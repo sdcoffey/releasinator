@@ -1,5 +1,7 @@
 require_relative 'command_processor'
 require 'semantic'
+require 'ostruct'
+require 'date'
 
 module Releasinator
   class GitUtil
@@ -11,7 +13,7 @@ module Releasinator
       CommandProcessor.command("git clean -x -d -f")
     end
 
-    def self.fetch()
+    def self.fetch
       CommandProcessor.command("git fetch origin --prune --recurse-submodules -j9")
     end
 
@@ -21,9 +23,9 @@ module Releasinator
       "" != CommandProcessor.command("git ls-tree --name-only -r #{current_branch} | grep ^#{path}$ | cat")
     end
 
-    def self.all_files()
+    def self.all_files
       current_branch = get_current_branch()
-      CommandProcessor.command("git ls-tree --name-only -r #{current_branch}")
+      CommandProcessor.command("git ls-tree --name-only -r #{current_branch}").split("\n")
     end
 
     def self.move(old_path, new_path)
@@ -48,8 +50,7 @@ module Releasinator
     end
 
     def self.is_clean_git?
-      any_changes = CommandProcessor.command("git status --porcelain")
-      '' == any_changes
+      CommandProcessor.command("git status --porcelain").strip.empty?
     end
 
     def self.get_current_branch
@@ -57,11 +58,11 @@ module Releasinator
     end
 
     def self.detached?
-      "" == CommandProcessor.command("git symbolic-ref --short -q HEAD | cat").strip
+      CommandProcessor.command("git symbolic-ref --short -q HEAD | cat").strip.empty?
     end
 
     def self.untracked_files
-      CommandProcessor.command("git ls-files --others --exclude-standard")
+      CommandProcessor.command("git ls-files --others --exclude-standard").strip
     end
 
     def self.diff
@@ -73,7 +74,7 @@ module Releasinator
     end
 
     def self.repo_url
-      CommandProcessor.command("git config --get remote.origin.url").strip
+      CommandProcessor.command("git remote -v show | head -n1 | awk '{print $2}'").strip
     end
 
     def self.delete_branch(branch_name)
@@ -83,11 +84,11 @@ module Releasinator
     end
 
     def self.has_branch?(branch_name)
-      "" != CommandProcessor.command("git branch --list #{branch_name}").strip
+      !CommandProcessor.command("git branch --list #{branch_name}").strip.empty?
     end
 
     def self.has_remote_branch?(branch_name)
-      "" != CommandProcessor.command("git branch --list -r #{branch_name}").strip
+      !CommandProcessor.command("git branch --list -r #{branch_name}").strip.empty?
     end
 
     def self.checkout(branch_name)
@@ -147,13 +148,13 @@ module Releasinator
           checkout("gh-pages")
         else
           CommandProcessor.command("git checkout --orphan gh-pages")
-          CommandProcessor.command("GLOBIGNORE='.git' git rm -rf *")
-          #http://stackoverflow.com/questions/19363795/git-rm-doesnt-remove-all-files-in-one-go
-          CommandProcessor.command("GLOBIGNORE='.git' git rm -rf *")
+          CommandProcessor.command("find . | grep -ve '^\.\/\.git.*' | grep -ve '^\.$' | xargs git rm -rf")
           CommandProcessor.command("touch README.md")
           CommandProcessor.command("git add .")
           CommandProcessor.command("git commit -am \"Initial gh-pages commit\"")
-          CommandProcessor.command("git push -u origin gh-pages")
+          if !repo_url.empty?
+            CommandProcessor.command("git push -u origin gh-pages")
+          end
         end
       end
     end
@@ -202,7 +203,36 @@ module Releasinator
       end
 
       # Format: [short hash] [date] [commit message] ([author])
-      CommandProcessor.command("git log #{rev} --pretty=format:'%h %ad%x20%s%x20%x28%an%x29' --date=short").split("\n").reverse!
+      commits = CommandProcessor.command("git log #{rev} --pretty=format:'%h %ad%x20%s%x20%x28%an%x29' --date=iso").split("\n").reverse!
+
+      commits.map { |commit|
+        spl = commit.split(' ')
+        datestr = spl[1..3].join(' ')
+
+        authorparts = []
+        i = spl.count - 1
+        authorpart = spl[i]
+
+        loop do
+          authorpart = spl[i]
+          authorparts << authorpart
+
+          i -= 1
+          if authorpart.start_with? '('
+            break
+          end
+        end
+
+        author = authorparts.join(' ').gsub(/\(|\)/, '')
+        msgstartidx = commit.index(datestr) + datestr.length
+
+        OpenStruct.new({
+          :hash => spl[0],
+          :date => Date.iso8601(spl[1..2].join('T') + spl[3]),
+          :author => author,
+          :message => commit[(commit.index(datestr) + datestr.length)..(commit.index('(' + author) - 1)].strip
+        })
+      }
     end
   end
 end
