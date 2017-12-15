@@ -33,8 +33,16 @@ module Git
     CommandProcessor.command("git mv -f #{old_path} #{new_path}")
   end
 
-  def self.add(filepath='.')
-    CommandProcessor.command("git add #{filepath}")
+  def self.add(files=nil)
+    if files
+      if files.is_a? Array
+        files = files.join(' ')
+      end
+    else
+      files = '.'
+    end
+
+    CommandProcessor.command("git add #{files}")
   end
 
   def self.push_branch(branch_name)
@@ -182,10 +190,6 @@ module Git
       end
       tag
     }.compact
-  end
-
-  def self.stage(files=".")
-    CommandProcessor.command("git add #{files}")
   end
 
   def self.commit(message)

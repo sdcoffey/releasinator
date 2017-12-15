@@ -132,34 +132,10 @@ describe Git do
     end
   end
 
-  describe 'add' do
-    it 'adds all files if no args present' do
-      CommandProcessor.command("echo 'some code' > code.rb")
-      CommandProcessor.command("echo 'some more code' > more_code.rb")
-
-      Git::add
-
-      staged_file_count = CommandProcessor.command("git status -s | wc -l").strip.to_i
-
-      expect(staged_file_count).to eq 2
-    end
-
-    it 'only adds files provided' do
-      CommandProcessor.command("echo 'some code' > code.rb")
-      CommandProcessor.command("echo 'some more code' > more_code.rb")
-
-      Git::add('code.rb')
-
-      staged_file_count = CommandProcessor.command("git status -s | grep 'A' | wc -l").strip.to_i
-
-      expect(staged_file_count).to eq 1
-    end
-  end
-
   describe 'commits' do
     it 'fetches all commits in chronological order' do
       CommandProcessor.command('touch new.txt')
-      Git::stage
+      Git::add
       Git::commit 'add new.txt'
 
       expect(Git::commits.count).to eq 2
@@ -180,13 +156,13 @@ describe Git do
       CommandProcessor.command('git tag start')
 
       CommandProcessor.command('touch new.txt')
-      Git::stage
+      Git::add
       Git::commit 'add new.txt'
 
       CommandProcessor.command('git tag finish')
 
       CommandProcessor.command('touch anothernew.txt')
-      Git::stage
+      Git::add
       Git::commit 'add anothernew.txt'
 
       commits = Git::commits('start', 'finish')
@@ -203,15 +179,15 @@ describe Git do
   describe 'commit' do
     it 'commits with the correct message' do
       CommandProcessor.command('touch new.txt')
-      Git::stage
+      Git::add
       Git::commit 'add new.txt'
 
       expect(CommandProcessor.command("git log --pretty=format:'%h %ad%x20%s%x20%x28%an%x29' --date=short | head -n1")).to include "add new.txt"
     end
   end
 
-  describe 'stage' do
-    it 'stages all changed files when no files passed' do
+  describe 'add' do
+    it 'adds all changed files when no files passed' do
       CommandProcessor.command('touch new.txt')
 
       staged_file_count = CommandProcessor.command("git status -s | grep 'A' | wc -l").strip.to_i
@@ -220,7 +196,7 @@ describe Git do
       expect(staged_file_count).to eq 0
       expect(untracked_file_count).to eq 1
 
-      Git::stage
+      Git::add
 
       staged_file_count = CommandProcessor.command("git status -s | grep 'A' | wc -l").strip.to_i
       untracked_file_count = CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i
@@ -229,16 +205,28 @@ describe Git do
       expect(untracked_file_count).to eq 0
     end
 
-    it 'stages files passed' do
+    it 'adds single file' do
       CommandProcessor.command('touch new.txt')
       CommandProcessor.command('touch new_untracked.txt')
 
       expect(CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i).to eq 2
 
-      Git::stage "new.txt"
+      Git::add 'new.txt'
 
       expect(CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i).to eq 1
       expect(CommandProcessor.command("git status -s | grep 'A' | wc -l").strip.to_i).to eq 1
+    end
+
+    it 'adds array of files' do
+      CommandProcessor.command('touch new.txt')
+      CommandProcessor.command('touch new_untracked.txt')
+
+      expect(CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i).to eq 2
+
+      Git::add ['new.txt', 'new_untracked.txt']
+
+      expect(CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i).to eq 0
+      expect(CommandProcessor.command("git status -s | grep 'A' | wc -l").strip.to_i).to eq 2
     end
   end
 end
