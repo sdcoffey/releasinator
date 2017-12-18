@@ -3,7 +3,7 @@ require 'bundler/setup'
 require 'colorize'
 require 'json'
 require 'tempfile'
-require_relative '../command_processor'
+require_relative '../bash'
 require_relative '../config_hash'
 require_relative '../copy_file'
 require_relative '../current_release'
@@ -13,6 +13,7 @@ require_relative '../publisher'
 require_relative '../validator'
 require_relative '../changelog/importer'
 require_relative '../changelog/updater'
+require_relative '../fs/utils'
 
 include Releasinator
 
@@ -37,8 +38,13 @@ namespace :validate do
   end
 
   desc "validate important text files end in a newline character"
-  task :eof_newlines => :config do
-    @validator.validate_eof_newlines
+  task :eof_newlines do
+    changed_files = FileSystem::Utils.add_newlines
+
+    if changed_files.count > 0
+      Git::add changed_files
+      Git::commit '[RELEASE] add EOF newlines'
+    end
   end
 
   desc "validate releasinator is up to date"
@@ -232,7 +238,7 @@ namespace :local do
   desc "change branch for git flow, if using git flow"
   task :prepare => [:config, :"validate:changelog"] do
     if @releasinator_config.use_git_flow()
-      CommandProcessor.command("git checkout -b release/#{@current_release.version} develop") unless GitUtil.get_current_branch() != "develop"
+      Bash::exec("git checkout -b release/#{@current_release.version} develop") unless GitUtil.get_current_branch() != "develop"
     end
   end
 
@@ -262,8 +268,8 @@ namespace :local do
   desc "run the git flow branch magic (if configured) and push local to remote"
   task :push => [:config, :"validate:changelog"] do
     if @releasinator_config.use_git_flow()
-      CommandProcessor.command("git checkout master")
-      CommandProcessor.command("git merge --no-ff release/#{@current_release.version}")
+      Bash::exec("git checkout master")
+      Bash::exec("git merge --no-ff release/#{@current_release.version}")
       GitUtil.delete_branch "release/#{@current_release.version}"
       # still on master, so let's push it
     end
@@ -273,13 +279,13 @@ namespace :local do
     if @releasinator_config.use_git_flow()
       # switch back to develop to merge and continue development
       GitUtil.checkout("develop")
-      CommandProcessor.command("git merge master")
+      Bash::exec("git merge master")
       GitUtil.push_branch("develop")
     end
     GitUtil.push_tag(@current_release.version)
     if @releasinator_config[:release_to_github]
       # TODO - check that the tag exists
-      CommandProcessor.command("sleep 5")
+      Bash::exec("sleep 5")
       Publisher.new(@releasinator_config).publish(GitUtil.repo_url, @current_release)
     end
 
@@ -312,7 +318,7 @@ def copy_the_file(root_dir, copy_file, version=nil)
   source_file_name = copy_file.source_file.gsub("__VERSION__", "#{version}")
   target_dir_name = copy_file.target_dir.gsub("__VERSION__", "#{version}")
   destination_file_name = copy_file.target_name.gsub("__VERSION__", "#{version}")
-  CommandProcessor.command("cp -R #{root_dir}/#{source_file_name} #{target_dir_name}/#{destination_file_name}")
+  Bash::exec("cp -R #{root_dir}/#{source_file_name} #{target_dir_name}/#{destination_file_name}")
 end
 
 def get_new_branch_name(new_branch_name, version)
@@ -379,11 +385,11 @@ namespace :docs do
           copy_the_file(root_dir, copy_file)
         end
 
-        CommandProcessor.command("git add .")
-        CommandProcessor.command("git commit -m \"Update docs for release #{@current_release.version}\"")
+        Bash::exec("git add .")
+        Bash::exec("git commit -m \"Update docs for release #{@current_release.version}\"")
 
         # switch back to previous branch
-        CommandProcessor.command("git checkout #{current_branch}")
+        Bash::exec("git checkout #{current_branch}")
       end
       Printer.success("Doc files copied.")
     else
@@ -396,10 +402,10 @@ namespace :docs do
     if @releasinator_config.has_key?(:doc_build_method)
       Dir.chdir(@releasinator_config.doc_target_dir) do
         current_branch = GitUtil.get_current_branch()
-        CommandProcessor.command("git checkout gh-pages")
+        Bash::exec("git checkout gh-pages")
         GitUtil.push_branch("gh-pages")
         # switch back to previous branch
-        CommandProcessor.command("git checkout #{current_branch}")
+        Bash::exec("git checkout #{current_branch}")
       end
       Printer.success("Docs pushed.")
     else

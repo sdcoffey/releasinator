@@ -49,7 +49,7 @@ module FileSystem
       }
 
       important_git_text_files.each do |filename|
-        CommandProcessor.command("tail -c1 #{filename} | read -r _ || echo >> #{filename}")
+        Bash::exec("tail -c1 #{filename} | read -r _ || echo >> #{filename}")
       end
 
       important_git_text_files

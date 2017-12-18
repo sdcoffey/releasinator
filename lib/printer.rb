@@ -1,5 +1,3 @@
-require_relative 'command_processor'
-
 module Releasinator
   class Printer
     def self.success(msg)

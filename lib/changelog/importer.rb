@@ -1,6 +1,4 @@
-require_relative '../git_util'
-require_relative '../command_processor'
-
+require_relative '../git/git'
 
 module Releasinator
   module Changelog

@@ -1,4 +1,4 @@
-require_relative '../command_processor'
+require_relative '../bash'
 require_relative './commit'
 require 'semantic'
 require 'ostruct'
@@ -9,28 +9,28 @@ module Git
     # resets the repo to a clean state
     checkout(branch_name)
     fetch()
-    CommandProcessor.command("git reset --hard origin/#{branch_name}")
-    CommandProcessor.command("git clean -x -d -f")
+    Bash::exec("git reset --hard origin/#{branch_name}")
+    Bash::exec("git clean -x -d -f")
   end
 
   def self.fetch
-    CommandProcessor.command("git fetch origin --prune --recurse-submodules -j9")
+    Bash::exec("git fetch origin --prune --recurse-submodules -j9")
   end
 
   def self.exist?(path)
     current_branch = get_current_branch()
     # grep is case sensitive, which is what we want.  Piped to cat so the grep error code is ignored.
-    "" != CommandProcessor.command("git ls-tree --name-only -r #{current_branch} | grep ^#{path}$ | cat")
+    "" != Bash::exec("git ls-tree --name-only -r #{current_branch} | grep ^#{path}$ | cat")
   end
 
   def self.all_files
     current_branch = get_current_branch()
-    CommandProcessor.command("git ls-tree --name-only -r #{current_branch}").split("\n")
+    Bash::exec("git ls-tree --name-only -r #{current_branch}").split("\n")
   end
 
   def self.move(old_path, new_path)
     puts "Renaming #{old_path} to #{new_path}".yellow
-    CommandProcessor.command("git mv -f #{old_path} #{new_path}")
+    Bash::exec("git mv -f #{old_path} #{new_path}")
   end
 
   def self.add(files=nil)
@@ -42,71 +42,71 @@ module Git
       files = '.'
     end
 
-    CommandProcessor.command("git add #{files}")
+    Bash::exec("git add #{files}")
   end
 
   def self.push_branch(branch_name)
     checkout(branch_name)
     fetch()
     # always merge to include any extra commits added during release process
-    CommandProcessor.command("git merge origin/#{branch_name} --no-edit")
-    CommandProcessor.command("git push origin #{branch_name}")
+    Bash::exec("git merge origin/#{branch_name} --no-edit")
+    Bash::exec("git push origin #{branch_name}")
   end
 
   def self.push_tag(tag_name)
-    CommandProcessor.command("git push origin #{tag_name}")
+    Bash::exec("git push origin #{tag_name}")
   end
 
   def self.is_clean_git?
-    CommandProcessor.command("git status --porcelain").strip.empty?
+    Bash::exec("git status --porcelain").strip.empty?
   end
 
   def self.get_current_branch
-    CommandProcessor.command("git symbolic-ref --short HEAD").strip
+    Bash::exec("git symbolic-ref --short HEAD").strip
   end
 
   def self.detached?
-    CommandProcessor.command("git symbolic-ref --short -q HEAD | cat").strip.empty?
+    Bash::exec("git symbolic-ref --short -q HEAD | cat").strip.empty?
   end
 
   def self.untracked_files
-    CommandProcessor.command("git ls-files --others --exclude-standard").strip
+    Bash::exec("git ls-files --others --exclude-standard").strip
   end
 
   def self.diff
-    CommandProcessor.command("git diff")
+    Bash::exec("git diff")
   end
 
   def self.cached
-    CommandProcessor.command("git diff --cached")
+    Bash::exec("git diff --cached")
   end
 
   def self.repo_url
-    CommandProcessor.command("git remote -v show | head -n1 | awk '{print $2}'").strip
+    Bash::exec("git remote -v show | head -n1 | awk '{print $2}'").strip
   end
 
   def self.delete_branch(branch_name)
     if has_branch? branch_name
-      CommandProcessor.command("git branch -D #{branch_name}")
+      Bash::exec("git branch -D #{branch_name}")
     end
   end
 
   def self.has_branch?(branch_name)
-    !CommandProcessor.command("git branch --list #{branch_name}").strip.empty?
+    !Bash::exec("git branch --list #{branch_name}").strip.empty?
   end
 
   def self.has_remote_branch?(branch_name)
-    !CommandProcessor.command("git branch --list -r #{branch_name}").strip.empty?
+    !Bash::exec("git branch --list -r #{branch_name}").strip.empty?
   end
 
   def self.checkout(branch_name)
     if get_current_branch != branch_name
-      CommandProcessor.command("git checkout #{branch_name}")
+      Bash::exec("git checkout #{branch_name}")
     end
   end
 
   def self.confirm_tag_overwrite(new_tag)
-    tag_results = CommandProcessor.command('git tag -l')
+    tag_results = Bash::exec('git tag -l')
     tag_results.split.each do |existing_tag|
       if existing_tag == new_tag
         Printer.check_proceed("Tag #{existing_tag} already present. Overwrite tag #{existing_tag}?", "Tag #{existing_tag} not overwritten.")
@@ -127,7 +127,7 @@ module Git
   end
 
   def self.rev_parse(branch_name)
-    output = CommandProcessor.command("git rev-parse --verify #{branch_name} 2>&1 | cat").strip
+    output = Bash::exec("git rev-parse --verify #{branch_name} 2>&1 | cat").strip
     if output.include? 'fatal: Needed a single revision'
       puts "error: branch or commit '#{branch_name}' does not exist. You may need to checkout this branch.".red
       abort()
@@ -136,7 +136,7 @@ module Git
   end
 
   def self.is_ancestor?(root_branch, child_branch)
-    "0" == CommandProcessor.command("git merge-base --is-ancestor #{root_branch} #{child_branch}; echo $?").strip
+    "0" == Bash::exec("git merge-base --is-ancestor #{root_branch} #{child_branch}; echo $?").strip
   end
 
   def self.tag(new_tag, changelog)
@@ -146,7 +146,7 @@ module Git
     changelog_tempfile.write(changelog)
     changelog_tempfile.close
     # include changelog in annotated tag
-    CommandProcessor.command("git tag -a -f #{new_tag} -F #{changelog_tempfile.path}")
+    Bash::exec("git tag -a -f #{new_tag} -F #{changelog_tempfile.path}")
     changelog_tempfile.unlink
   end
 
@@ -155,13 +155,13 @@ module Git
       if has_remote_branch? "origin/gh-pages"
         checkout("gh-pages")
       else
-        CommandProcessor.command("git checkout --orphan gh-pages")
-        CommandProcessor.command("find . | grep -ve '^\.\/\.git.*' | grep -ve '^\.$' | xargs git rm -rf")
-        CommandProcessor.command("touch README.md")
-        CommandProcessor.command("git add .")
-        CommandProcessor.command("git commit -am \"Initial gh-pages commit\"")
+        Bash::exec("git checkout --orphan gh-pages")
+        Bash::exec("find . | grep -ve '^\.\/\.git.*' | grep -ve '^\.$' | xargs git rm -rf")
+        Bash::exec("touch README.md")
+        Bash::exec("git add .")
+        Bash::exec("git commit -am \"Initial gh-pages commit\"")
         if !repo_url.empty?
-          CommandProcessor.command("git push -u origin gh-pages")
+          Bash::exec("git push -u origin gh-pages")
         end
       end
     end
@@ -169,11 +169,11 @@ module Git
 
   def self.tags(remote=false)
     if remote
-      CommandProcessor.command("git ls-remote --tags").split("\n")
+      Bash::exec("git ls-remote --tags").split("\n")
         .map { |tag| tag.split()[1].strip.gsub("refs/tags/", "") }
         .keep_if { |tag| !tag.include? "{}" }
     else
-      CommandProcessor.command("git tag --list").split("\n")
+      Bash::exec("git tag --list").split("\n")
     end
   end
 
@@ -193,11 +193,11 @@ module Git
   end
 
   def self.commit(message)
-    CommandProcessor.command("git commit -m'#{message}'")
+    Bash::exec("git commit -m'#{message}'")
   end
 
   def self.reset_head(hard=false)
-    CommandProcessor.command("git reset#{' --hard' if hard} HEAD")
+    Bash::exec("git reset#{' --hard' if hard} HEAD")
   end
 
   def self.commits(from_tag=nil, to_tag="HEAD")
@@ -207,7 +207,7 @@ module Git
     end
 
     # Format: [short hash] [date] [commit message] ([author])
-    commits = CommandProcessor.command("git log #{rev} --pretty=format:'%h %ad%x20%s%x20%x28%an%x29' --date=iso").split("\n").reverse!
+    commits = Bash::exec("git log #{rev} --pretty=format:'%h %ad%x20%s%x20%x28%an%x29' --date=iso").split("\n").reverse!
 
     commits.map { |commit|
       spl = commit.split(' ')

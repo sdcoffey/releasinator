@@ -1,6 +1,7 @@
 require 'fileutils'
 require_relative '../../lib/git/git'
-require_relative '../../lib/command_processor'
+require_relative '../../lib/bash'
+
 include Releasinator
 
 describe Git do
@@ -9,13 +10,13 @@ describe Git do
     dir = Dir.mktmpdir
     Dir.chdir dir
 
-    CommandProcessor.command("git init")
-    CommandProcessor.command("git config user.name 'test'")
-    CommandProcessor.command("git config user.email 'test@example.com'")
+    Bash::exec("git init")
+    Bash::exec("git config user.name 'test'")
+    Bash::exec("git config user.email 'test@example.com'")
 
-    CommandProcessor.command("touch init.ini")
-    CommandProcessor.command("git add -A")
-    CommandProcessor.command("git commit -m'initial commit'")
+    Bash::exec("touch init.ini")
+    Bash::exec("git add -A")
+    Bash::exec("git commit -m'initial commit'")
 
     dir
   end
@@ -32,9 +33,9 @@ describe Git do
 
   describe 'exist?' do
     it 'does exist' do
-      CommandProcessor.command("echo 'hello' > hello_world.rb")
-      CommandProcessor.command("git add -A")
-      CommandProcessor.command("git commit -m'ic'")
+      Bash::exec("echo 'hello' > hello_world.rb")
+      Bash::exec("git add -A")
+      Bash::exec("git commit -m'ic'")
 
       expect(Git::exist?('hello_world.rb')).to be true
     end
@@ -46,10 +47,10 @@ describe Git do
 
   describe 'all files' do
     it 'returns all files' do
-      CommandProcessor.command("echo 'hello' > hello_world.rb")
-      CommandProcessor.command("echo 'hello' > hello_world_2.rb")
-      CommandProcessor.command("git add -A")
-      CommandProcessor.command("git commit -m'ic'")
+      Bash::exec("echo 'hello' > hello_world.rb")
+      Bash::exec("echo 'hello' > hello_world_2.rb")
+      Bash::exec("git add -A")
+      Bash::exec("git commit -m'ic'")
 
       all_files = Git::all_files
       expect(all_files.count).to eq 3
@@ -60,11 +61,11 @@ describe Git do
 
   describe 'checkout' do
     it 'checks out other branch' do
-      CommandProcessor.command("git checkout -b new-branch")
-      expect(CommandProcessor.command("git symbolic-ref --short HEAD").strip).to eq "new-branch"
+      Bash::exec("git checkout -b new-branch")
+      expect(Bash::exec("git symbolic-ref --short HEAD").strip).to eq "new-branch"
 
       Git::checkout("master")
-      expect(CommandProcessor.command("git symbolic-ref --short HEAD").strip).to include "master"
+      expect(Bash::exec("git symbolic-ref --short HEAD").strip).to include "master"
     end
   end
 
@@ -72,7 +73,7 @@ describe Git do
     it 'creates tag with annotation' do
       Git::tag('0.0.1', 'annotation')
 
-      tags = CommandProcessor.command('git tag -n9')
+      tags = Bash::exec('git tag -n9')
 
       expect(tags).to include('0.0.1')
       expect(tags).to include('annotation')
@@ -101,7 +102,7 @@ describe Git do
     end
 
     it 'creates gh-pages branch if not exist' do
-      expect(CommandProcessor.command("git symbolic-ref --short HEAD").strip).to include "gh-pages"
+      expect(Bash::exec("git symbolic-ref --short HEAD").strip).to include "gh-pages"
     end
 
     it 'creates readme' do
@@ -109,14 +110,14 @@ describe Git do
     end
 
     it 'creates intial commit' do
-      expect(CommandProcessor.command('git log --pretty=format:"%h %ad%x20%s%x20%x28%an%x29" --date=short')).to include 'Initial gh-pages commit'
+      expect(Bash::exec('git log --pretty=format:"%h %ad%x20%s%x20%x28%an%x29" --date=short')).to include 'Initial gh-pages commit'
     end
   end
 
   describe 'tags' do
     it 'lists local tags' do
-      CommandProcessor.command("git tag '1.2.3'")
-      CommandProcessor.command("git tag '1.2.4'")
+      Bash::exec("git tag '1.2.3'")
+      Bash::exec("git tag '1.2.4'")
 
       expect(Git::tags).to eq(['1.2.3', '1.2.4'])
     end
@@ -124,9 +125,9 @@ describe Git do
 
   describe 'tagged_versions' do
     it 'returns tagged versions' do
-      CommandProcessor.command("git tag '1.2.3'")
-      CommandProcessor.command("git tag 'v1.2.4'")
-      CommandProcessor.command("git tag 'not-a-version'")
+      Bash::exec("git tag '1.2.3'")
+      Bash::exec("git tag 'v1.2.4'")
+      Bash::exec("git tag 'not-a-version'")
 
       expect(Git::tagged_versions).to eq(['1.2.3', '1.2.4'])
     end
@@ -134,7 +135,7 @@ describe Git do
 
   describe 'commits' do
     it 'fetches all commits in chronological order' do
-      CommandProcessor.command('touch new.txt')
+      Bash::exec('touch new.txt')
       Git::add
       Git::commit 'add new.txt'
 
@@ -153,15 +154,15 @@ describe Git do
     end
 
     it 'fetches all commits in chronological order' do
-      CommandProcessor.command('git tag start')
+      Bash::exec('git tag start')
 
-      CommandProcessor.command('touch new.txt')
+      Bash::exec('touch new.txt')
       Git::add
       Git::commit 'add new.txt'
 
-      CommandProcessor.command('git tag finish')
+      Bash::exec('git tag finish')
 
-      CommandProcessor.command('touch anothernew.txt')
+      Bash::exec('touch anothernew.txt')
       Git::add
       Git::commit 'add anothernew.txt'
 
@@ -178,55 +179,55 @@ describe Git do
 
   describe 'commit' do
     it 'commits with the correct message' do
-      CommandProcessor.command('touch new.txt')
+      Bash::exec('touch new.txt')
       Git::add
       Git::commit 'add new.txt'
 
-      expect(CommandProcessor.command("git log --pretty=format:'%h %ad%x20%s%x20%x28%an%x29' --date=short | head -n1")).to include "add new.txt"
+      expect(Bash::exec("git log --pretty=format:'%h %ad%x20%s%x20%x28%an%x29' --date=short | head -n1")).to include "add new.txt"
     end
   end
 
   describe 'add' do
     it 'adds all changed files when no files passed' do
-      CommandProcessor.command('touch new.txt')
+      Bash::exec('touch new.txt')
 
-      staged_file_count = CommandProcessor.command("git status -s | grep 'A' | wc -l").strip.to_i
-      untracked_file_count = CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i
+      staged_file_count = Bash::exec("git status -s | grep 'A' | wc -l").strip.to_i
+      untracked_file_count = Bash::exec("git status -s | grep '??' | wc -l").strip.to_i
 
       expect(staged_file_count).to eq 0
       expect(untracked_file_count).to eq 1
 
       Git::add
 
-      staged_file_count = CommandProcessor.command("git status -s | grep 'A' | wc -l").strip.to_i
-      untracked_file_count = CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i
+      staged_file_count = Bash::exec("git status -s | grep 'A' | wc -l").strip.to_i
+      untracked_file_count = Bash::exec("git status -s | grep '??' | wc -l").strip.to_i
 
       expect(staged_file_count).to eq 1
       expect(untracked_file_count).to eq 0
     end
 
     it 'adds single file' do
-      CommandProcessor.command('touch new.txt')
-      CommandProcessor.command('touch new_untracked.txt')
+      Bash::exec('touch new.txt')
+      Bash::exec('touch new_untracked.txt')
 
-      expect(CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i).to eq 2
+      expect(Bash::exec("git status -s | grep '??' | wc -l").strip.to_i).to eq 2
 
       Git::add 'new.txt'
 
-      expect(CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i).to eq 1
-      expect(CommandProcessor.command("git status -s | grep 'A' | wc -l").strip.to_i).to eq 1
+      expect(Bash::exec("git status -s | grep '??' | wc -l").strip.to_i).to eq 1
+      expect(Bash::exec("git status -s | grep 'A' | wc -l").strip.to_i).to eq 1
     end
 
     it 'adds array of files' do
-      CommandProcessor.command('touch new.txt')
-      CommandProcessor.command('touch new_untracked.txt')
+      Bash::exec('touch new.txt')
+      Bash::exec('touch new_untracked.txt')
 
-      expect(CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i).to eq 2
+      expect(Bash::exec("git status -s | grep '??' | wc -l").strip.to_i).to eq 2
 
       Git::add ['new.txt', 'new_untracked.txt']
 
-      expect(CommandProcessor.command("git status -s | grep '??' | wc -l").strip.to_i).to eq 0
-      expect(CommandProcessor.command("git status -s | grep 'A' | wc -l").strip.to_i).to eq 2
+      expect(Bash::exec("git status -s | grep '??' | wc -l").strip.to_i).to eq 0
+      expect(Bash::exec("git status -s | grep 'A' | wc -l").strip.to_i).to eq 2
     end
   end
 end

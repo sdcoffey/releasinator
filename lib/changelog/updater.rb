@@ -1,8 +1,8 @@
 require 'tmpdir'
 
-require_relative '../command_processor'
+require_relative '../bash'
 require_relative '../printer'
-require_relative '../git_util'
+require_relative '../git/git'
 
 module Releasinator
   module Changelog
@@ -46,7 +46,7 @@ module Releasinator
           if editor == nil
             Printer.fail("Value of $EDITOR environment variable must be set in order to edit CHANGELOG")
             abort()
-          elsif "" == CommandProcessor.command("which #{editor} | cat")
+          elsif "" == Bash::exec("which #{editor} | cat")
             Printer.fail("Value of $EDITOR (#{editor}) not found on path")
             abort()
           end

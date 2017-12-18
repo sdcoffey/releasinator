@@ -1,13 +1,13 @@
-require_relative "../lib/command_processor"
+require_relative "../lib/bash"
 
-describe Releasinator::CommandProcessor do
+describe Bash do
 
   describe 'command' do
     it 'runs commands on the shell' do
       tmpdir = Dir.mktmpdir
 
       Dir.chdir(tmpdir) do
-        CommandProcessor.command('echo "hello world!" > hello.txt')
+        Bash::exec('echo "hello world!" > hello.txt')
 
         file = File.open(File.join(tmpdir, 'hello.txt'))
         expect(file.read).to eq "hello world!\n"
@@ -15,13 +15,13 @@ describe Releasinator::CommandProcessor do
     end
 
     it 'returns shell output' do
-      expect(CommandProcessor.command('echo "hello world"')).to eq "hello world\n"
+      expect(Bash::exec('echo "hello world"')).to eq "hello world\n"
     end
 
     it 'executes command in desired dir' do
       tmpdir = Dir.mktmpdir
 
-      CommandProcessor.command('echo "hello world!" > hello.txt', false, tmpdir)
+      Bash::exec('echo "hello world!" > hello.txt', false, tmpdir)
 
       file = File.open(File.join(tmpdir, 'hello.txt'))
       expect(file.read).to eq "hello world!\n"

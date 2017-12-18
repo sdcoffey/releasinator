@@ -1,6 +1,6 @@
-require_relative 'command_processor'
+require_relative 'bash'
 require_relative 'downstream_repo'
-require_relative 'git_util'
+require_relative 'git/git'
 require_relative 'printer'
 require_relative 'publisher'
 
@@ -29,7 +29,7 @@ module Releasinator
           puts "resetting downstream_repo[#{index}]: #{downstream_repo.url}" if @releasinator_config[:verbose]
           Dir.mkdir(DOWNSTREAM_REPOS) unless File.exist?(DOWNSTREAM_REPOS)
           Dir.chdir(DOWNSTREAM_REPOS) do
-            CommandProcessor.command("git clone --origin origin #{downstream_repo.url} #{downstream_repo.name}") unless File.exist?(downstream_repo.name)
+            Bash::exec("git clone --origin origin #{downstream_repo.url} #{downstream_repo.name}") unless File.exist?(downstream_repo.name)
 
             Dir.chdir(downstream_repo.name) do
               GitUtil.reset_repo(downstream_repo.branch)
@@ -60,16 +60,16 @@ module Releasinator
 
               if downstream_repo.options.has_key? :new_branch_name
                 new_branch_name = get_new_branch_name(downstream_repo.options[:new_branch_name], @current_release.version)
-                CommandProcessor.command("git checkout -b #{new_branch_name}")
+                Bash::exec("git checkout -b #{new_branch_name}")
               end
 
               if downstream_repo.full_file_sync
                 # remove old everything
-                CommandProcessor.command("rm -rf *")
+                Bash::exec("rm -rf *")
 
                 # update all distribution files
-                CommandProcessor.command("rsync -av --exclude='#{DOWNSTREAM_REPOS}' --exclude='.git/' #{copy_from_dir}/* .")
-                CommandProcessor.command("rsync -av --exclude='#{DOWNSTREAM_REPOS}' --exclude='.git/' #{copy_from_dir}/.[!.]* .")
+                Bash::exec("rsync -av --exclude='#{DOWNSTREAM_REPOS}' --exclude='.git/' #{copy_from_dir}/* .")
+                Bash::exec("rsync -av --exclude='#{DOWNSTREAM_REPOS}' --exclude='.git/' #{copy_from_dir}/.[!.]* .")
               end
 
               # copy custom files
@@ -90,14 +90,14 @@ module Releasinator
                 abort()
               end
               # add everything to git and commit
-              CommandProcessor.command("git add .")
-              CommandProcessor.command("git add -u .")
+              Bash::exec("git add .")
+              Bash::exec("git add -u .")
               if downstream_repo.options.has_key? :new_branch_name
                 commit_message = "Update #{@releasinator_config[:product_name]} to #{@current_release.version}"
               else
                 commit_message = "Release #{@current_release.version}"
               end
-              CommandProcessor.command("git commit -am \"#{commit_message}\"")
+              Bash::exec("git commit -am \"#{commit_message}\"")
             end
           end
         end
@@ -153,15 +153,15 @@ module Releasinator
             Dir.chdir(downstream_repo.name) do
               if downstream_repo.options.has_key? :new_branch_name
                 new_branch_name = get_new_branch_name(downstream_repo.options[:new_branch_name], @current_release.version)
-                CommandProcessor.command("git push -u origin #{new_branch_name}")
+                Bash::exec("git push -u origin #{new_branch_name}")
                 # TODO - check that the branch exists
-                CommandProcessor.command("sleep 5")
+                Bash::exec("sleep 5")
                 Publisher.new(@releasinator_config).publish_pull_request(downstream_repo.url, @current_release, @releasinator_config[:product_name], downstream_repo.branch, new_branch_name)
               else
                 GitUtil.push_branch("master")
                 GitUtil.push_tag(@current_release.version)
                 # TODO - check that the tag exists
-                CommandProcessor.command("sleep 5")
+                Bash::exec("sleep 5")
                 Publisher.new(@releasinator_config).publish(downstream_repo.url, @current_release) unless ! downstream_repo.release_to_github
               end
             end

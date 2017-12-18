@@ -1,7 +1,7 @@
 require 'configatron'
 require_relative 'default_config'
-require_relative 'command_processor'
-require_relative 'git_util'
+require_relative 'bash'
+require_relative 'git/git'
 
 RELEASINATOR_NAME = "releasinator"
 CONFIG_FILE_NAME = ".#{RELEASINATOR_NAME}.rb"
@@ -24,12 +24,12 @@ module Releasinator
         out_file.write(DEFAULT_CONFIG)
         out_file.close
         require require_file_name
-        
+
         # dpn't want to commit other files
         if is_git_already_clean
           puts "adding default #{CONFIG_FILE_NAME} to git".yellow
-          CommandProcessor.command("git add #{CONFIG_FILE_NAME}")
-          CommandProcessor.command("git commit -m \"#{RELEASINATOR_NAME}: add default config\"")
+          Bash::exec("git add #{CONFIG_FILE_NAME}")
+          Bash::exec("git commit -m \"#{RELEASINATOR_NAME}: add default config\"")
         end
       end
 

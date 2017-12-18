@@ -1,7 +1,7 @@
 require 'colorize'
 require 'net/http'
 require 'json'
-require_relative 'command_processor'
+require_relative 'bash'
 require_relative 'downstream_repo'
 require_relative 'github_repo'
 require_relative 'printer'
@@ -32,7 +32,7 @@ module Releasinator
     end
 
     def validate_in_path(executable)
-      if "" == CommandProcessor.command("which #{executable} | cat")
+      if "" == Bash::exec("which #{executable} | cat")
         Printer.fail(executable.bold + " not found on path.")
         abort()
       else
@@ -41,7 +41,7 @@ module Releasinator
     end
 
     def validate_git_version
-      version_output = CommandProcessor.command("git version")
+      version_output = Bash::exec("git version")
       # version where the parallel git fetch features were added
       expected_git_version = "2.8.0"
       actual_git_version = version_output.split[2]
@@ -146,7 +146,7 @@ module Releasinator
         Printer.success("Added missing line '#{line}' to .gitignore.")
 
         if is_git_already_clean
-          CommandProcessor.command("git add . && git commit -m \"#{@releasinator_config[:releasinator_name]}: add missing line to .gitignore\"")
+          Bash::exec("git add . && git commit -m \"#{@releasinator_config[:releasinator_name]}: add missing line to .gitignore\"")
         end
       end
     end
@@ -191,7 +191,7 @@ module Releasinator
 
           # search for files that are somewhat similar to the file being searched, ignoring case
           filename_prefix = expected_file_name[0,5]
-          similar_files = CommandProcessor.command("find . -type f -not -path \"./#{search_ignore_path}/*\" -iname '#{filename_prefix}*'| sed 's|./||'").strip
+          similar_files = Bash::exec("find . -type f -not -path \"./#{search_ignore_path}/*\" -iname '#{filename_prefix}*'| sed 's|./||'").strip
           num_similar_files = similar_files.split.count
           puts similar_files
           if num_similar_files == 1
@@ -364,7 +364,7 @@ module Releasinator
       # fix any references to file in readme
       replace_string("README.md", "(#{old_name})", "(#{new_name})")
       if is_git_already_clean
-        CommandProcessor.command("git add . && git commit -m \"#{@releasinator_config[:releasinator_name]}: rename #{old_name} to #{new_name}\"")
+        Bash::exec("git add . && git commit -m \"#{@releasinator_config[:releasinator_name]}: rename #{old_name} to #{new_name}\"")
       end
     end
 
