@@ -1,7 +1,7 @@
 require 'fileutils'
 require 'tempfile'
 require_relative '../../lib/fs/utils'
-require_relative '../../lib/command_processor'
+require_relative '../../lib/bash'
 
 include Releasinator
 
@@ -11,14 +11,14 @@ describe FileSystem::Utils do
     before :each do
       @tmpdir = Dir::mktmpdir
       Dir.chdir(@tmpdir) do
-        CommandProcessor.command("git init")
-        CommandProcessor.command("git config user.name 'test'")
-        CommandProcessor.command("git config user.email 'test@example.com'")
+        Bash::exec("git init")
+        Bash::exec("git config user.name 'test'")
+        Bash::exec("git config user.email 'test@example.com'")
       end
     end
 
     after :each do
-      #FileUtils.remove_dir(@tmpdir)
+      FileUtils.remove_dir(@tmpdir)
     end
 
     it 'adds newlines when there arent any' do
@@ -27,8 +27,8 @@ describe FileSystem::Utils do
         file.write('some data')
         file.close
 
-        CommandProcessor.command('git add -A')
-        CommandProcessor.command('git commit -m"add some data"')
+        Bash::exec('git add -A')
+        Bash::exec('git commit -m"add some data"')
 
         FileSystem::Utils.add_newlines
 
@@ -45,12 +45,12 @@ describe FileSystem::Utils do
         file.write('some data')
         file.close
 
-        CommandProcessor.command('git add -A')
-        CommandProcessor.command('git commit -m"add some data"')
+        Bash::exec('git add -A')
+        Bash::exec('git commit -m"add some data"')
 
         FileSystem::Utils.add_newlines
 
-        changed_count = CommandProcessor.command("git status -s | wc -l").strip.to_i
+        changed_count = Bash::exec("git status -s | wc -l").strip.to_i
 
         expect(changed_count).to eq 0
       end
@@ -63,12 +63,12 @@ describe FileSystem::Utils do
         file.write("some data\n")
         file.close
 
-        CommandProcessor.command('git add -A')
-        CommandProcessor.command('git commit -m"add some data"')
+        Bash::exec('git add -A')
+        Bash::exec('git commit -m"add some data"')
 
         FileSystem::Utils.add_newlines
 
-        changed_count = CommandProcessor.command("git status -s | wc -l").strip.to_i
+        changed_count = Bash::exec("git status -s | wc -l").strip.to_i
 
         expect(changed_count).to eq 0
       end
