@@ -1,4 +1,4 @@
-require_relative '../git_util'
+require_relative '../git/git'
 
 module FileSystem
   class Utils
@@ -40,7 +40,7 @@ module FileSystem
     ]
 
     def self.add_newlines(working_directory=Dir.pwd)
-      all_git_files = GitUtil.all_files.split
+      all_git_files = Git::all_files
 
       important_git_text_files = all_git_files.select{ |filename|
         TEXT_FILE_EXTENSIONS.any? { |extension|
