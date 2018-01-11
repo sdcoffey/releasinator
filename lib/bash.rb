@@ -61,8 +61,6 @@ module Bash
   end
 
   def self.print(msg)
-    if ENV['VERBOSE']
-      puts msg
-    end
+    puts msg if ARGV.include?('--verbose') || ARGV.include?('-v') || ENV['VERBOSE']
   end
 end
