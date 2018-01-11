@@ -1,3 +1,6 @@
+RELEASINATOR_NAME = "releasinator"
+CONFIG_FILE_NAME = ".#{RELEASINATOR_NAME}.rb"
+
 DEFAULT_CONFIG = %(configatron.product_name = "test product"
 
 # List of items to confirm from the person releasing.  Required, but empty list is ok.
